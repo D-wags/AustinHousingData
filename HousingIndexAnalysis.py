@@ -1,0 +1,102 @@
+# df access/structure mimics dictionary access (see ex. below) w/ keys being columns and values being arrays
+# sample df:
+# df1 = pd.DataFrame({"HPI":[80,85,88,85],
+#					  "Index": [0,1,2,3]})
+# pickling serializes and saves bytecode of code modules/objects. 
+
+import pandas as pd
+import quandl, pickle
+import matplotlib.pyplot as plt
+from matplotlib import style
+style.use("fivethirtyeight")
+
+
+#df = read_csv("newcsv4.csv", names=["Date", "Austin_HPI"], index_col=0)
+# convert to HTML table
+#df.to_html("example.html")
+#df.rename(columns={"Austin_HPI": "78756_HPI"}, in_place=True)
+#print(df.head())
+
+
+# get list of 50 states from wikipedia, states is a list of pandas dataframes
+def get_states():
+	states = pd.read_html("https://simple.wikipedia.org/wiki/List_of_U.S._states")
+	return states[0][0][1:]
+
+#populate dataframe
+def get_housing_data():
+	states = get_states()
+	main_df = pd.DataFrame()
+	state_abrvs = []
+
+	for ste in states:
+		state_abrvs.append(ste)
+		query = "FMAC/HPI_"+str(ste)
+		df = quandl.get(query, auth_token="-pj7iy-RshhTAs4i2J89")
+		df.columns = [str(ste)]
+		df["United States"] = (df["United States"] - df["United States"][0])/ df["United States"][0] * 100.0
+		
+
+
+		if main_df.empty:
+			main_df = df
+		else:
+			main_df = main_df.join(df)
+
+	main_df.to_csv("housing_data.csv")
+
+	# pickle data
+	pickle_out = open("50_states.pickle", "wb")
+	pickle.dump(main_df, pickle_out)
+	pickle_out.close()
+
+
+#pickle_in = open("50_states.pickle", "rb")
+#HPI_data = pickle.load(pickle_in)
+
+# pickling woth pandas
+# HPI_data.to_pickle("pickle.pickle")
+# HPI_data2 = pd.read_pickle("pickle.pickle")
+# print(HPI_data2)
+
+
+#get housing index benchmark data
+def get_HPI_benchmark():
+	df = quandl.get("FMAC/HPI_USA", auth_token="-pj7iy-RshhTAs4i2J89")
+	df.columns = ["United States"]
+	df["United States"] = (df["United States"] - df["United States"][0])/ df["United States"][0] * 100.0
+	return df
+
+# DATA ACQUIRED! - comment out get function
+#get_housing_data()
+
+
+HPI_data = pd.read_pickle("50_states.pickle")
+
+
+# PLOTTING - works!
+fig = plt.figure()
+ax1 = plt.subplot2grid((1,1),(0,0))
+benchmark = get_HPI_benchmark()
+
+# plot USA benchmark data in thick black
+HPI_data.plot(ax = ax1)
+benchmark.plot(ax=ax1, color = "k", linewidth=8)
+
+plt.legend().remove()
+plt.show()
+
+
+# descriptive stats
+HPI_State_Correlation = HPI_data.corr()
+print(HPI_State_Correlation)
+print(HPI_State_Correlation.describe())
+
+
+
+
+
+
+
+
+
